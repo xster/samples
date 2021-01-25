@@ -82,6 +82,7 @@ class FlutterViewEngine(val engine: FlutterEngine) : LifecycleObserver{
 
         // Detach rendering pipeline.
         flutterView!!.detachFromFlutterEngine()
+        engine.destroy()
     }
 
     /**

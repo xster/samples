@@ -29,7 +29,7 @@ import kotlin.collections.ArrayList
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var flutterViewEngine: FlutterViewEngine
+    // private lateinit var flutterViewEngine: FlutterViewEngine
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,23 +38,23 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // TODO: create a multi-engine version after
-        // https://github.com/flutter/flutter/issues/72009 is built.
-        val engine = FlutterEngine(applicationContext)
-        engine.dartExecutor.executeDartEntrypoint(
-            DartExecutor.DartEntrypoint(
-            FlutterInjector.instance().flutterLoader().findAppBundlePath(),
-            "showCell"))
+        // // TODO: create a multi-engine version after
+        // // https://github.com/flutter/flutter/issues/72009 is built.
+        // val engine = FlutterEngine(applicationContext)
+        // engine.dartExecutor.executeDartEntrypoint(
+        //     DartExecutor.DartEntrypoint(
+        //     FlutterInjector.instance().flutterLoader().findAppBundlePath(),
+        //     "showCell"))
 
-        flutterViewEngine = FlutterViewEngine(engine)
+        // flutterViewEngine = FlutterViewEngine(engine)
         // The activity and FlutterView have different lifecycles.
         // Attach the activity right away but only start rendering when the
         // view is also scrolled into the screen.
-        flutterViewEngine.attachToActivity(this)
+        // flutterViewEngine.attachToActivity(this)
 
         val layoutManager = LinearLayoutManager(this)
         val recyclerView = binding.recyclerView
-        val adapter = ListAdapter(this, flutterViewEngine)
+        val adapter = ListAdapter(this)
         recyclerView.layoutManager = layoutManager
         recyclerView.adapter = adapter
 
@@ -81,30 +81,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        flutterViewEngine.detachActivity()
-    }
+    // override fun onDestroy() {
+    //     super.onDestroy()
+    //     flutterViewEngine.detachActivity()
+    // }
 
     // These below aren't used here in this demo but would be needed for Flutter plugins that may
     // consume these events.
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        flutterViewEngine.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-    }
+    // override fun onRequestPermissionsResult(
+    //     requestCode: Int,
+    //     permissions: Array<out String>,
+    //     grantResults: IntArray
+    // ) {
+    //     flutterViewEngine.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    //     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    // }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        flutterViewEngine.onActivityResult(requestCode, resultCode, data)
-        super.onActivityResult(requestCode, resultCode, data)
-    }
+    // override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    //     flutterViewEngine.onActivityResult(requestCode, resultCode, data)
+    //     super.onActivityResult(requestCode, resultCode, data)
+    // }
 
-    override fun onUserLeaveHint() {
-        flutterViewEngine.onUserLeaveHint()
-        super.onUserLeaveHint()
-    }
+    // override fun onUserLeaveHint() {
+    //     flutterViewEngine.onUserLeaveHint()
+    //     super.onUserLeaveHint()
+    // }
 }

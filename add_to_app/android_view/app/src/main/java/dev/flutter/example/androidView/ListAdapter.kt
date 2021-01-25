@@ -4,6 +4,7 @@
 
 package dev.flutter.example.androidView
 
+import android.app.Activity
 import android.content.Context
 import android.util.Log
 import android.view.LayoutInflater
@@ -11,7 +12,10 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import dev.flutter.example.androidView.databinding.AndroidCardBinding
+import io.flutter.FlutterInjector
 import io.flutter.embedding.android.FlutterView
+import io.flutter.embedding.engine.FlutterEngineGroup
+import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
 import java.util.*
 import kotlin.random.Random
@@ -24,7 +28,7 @@ import kotlin.random.Random
  * [FlutterViewEngine.attachFlutterView] and [FlutterViewEngine.detachActivity] on a
  * [FlutterViewEngine] equivalent class that you may want to create in your own application.
  */
-class ListAdapter(context: Context, private val flutterViewEngine: FlutterViewEngine) : RecyclerView.Adapter<ListAdapter.Cell>() {
+class ListAdapter(activity: Activity) : RecyclerView.Adapter<ListAdapter.Cell>() {
     // Save the previous cells determined to be Flutter cells to avoid a confusing visual effect
     // that the Flutter cells change position when scrolling back.
     var previousFlutterCells = TreeSet<Int>();
@@ -32,16 +36,14 @@ class ListAdapter(context: Context, private val flutterViewEngine: FlutterViewEn
     private val matchParentLayout = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
 
     private val random = Random.Default
-    private val flutterView = FlutterView(context)
-    private val flutterChannel = MethodChannel(flutterViewEngine.engine.dartExecutor, "dev.flutter.example/cell")
-
-    private var flutterCell: Cell? = null
+    private val flutterView = FlutterView(activity)
+    private val flutterEngineGroup = FlutterEngineGroup();
 
     /**
      * A [RecyclerView.ViewHolder] based on the `android_card` layout XML.
      */
     inner class Cell(val binding: AndroidCardBinding) : RecyclerView.ViewHolder(binding.root) {
-
+        var viewEngine: FlutterViewEngine? = null
     }
 
     override fun onCreateViewHolder(viewGroup: ViewGroup, viewType: Int): Cell {
@@ -60,29 +62,20 @@ class ListAdapter(context: Context, private val flutterViewEngine: FlutterViewEn
         // previously Flutter cells as Flutter cells.
         if (previousFlutterCells.contains(position)
             || ((previousFlutterCells.isEmpty() || position > previousFlutterCells.last())
-                && flutterCell == null
-                && random.nextInt(3) == 0)) {
-            // If we're restoring a cell at a previous location, the current cell may not have
-            // recycled yet since that JVM timing is indeterministic. Yank it from the current one.
-            //
-            // This shouldn't produce any visual glitches since in the forward direction,
-            // Flutter cells were only introduced once the previous Flutter cell recycled.
-            if (flutterCell != null) {
-                Log.w("FeedAdapter", "While restoring a previous Flutter cell, a current "
-                        + "yet to be recycled Flutter cell was detached.")
-                flutterCell!!.binding.root.removeView(flutterView)
-                flutterViewEngine.detachFlutterView()
-                flutterCell = null
-            }
+                && random.nextInt(1) == 0)) {
+
+            val flutterEngine = flutterEngineGroup.createAndRunEngine(activity.getApplicationContext(), DartExecutor.DartEntrypoint(
+            FlutterInjector.instance().flutterLoader().findAppBundlePath(),
+            "showCell"))
+            val flutterViewEngine = FlutterViewEngine(flutterEngine)
+            flutterViewEngine.attachToActivity(activity)
 
             // Add the Flutter card and hide the Android card for the cells chosen to be Flutter
             // cells.
             cell.binding.root.addView(flutterView, matchParentLayout)
             cell.binding.androidCard.visibility = View.GONE
 
-            // Keep track of the cell so we know which one to restore back to the "Android cell"
-            // state when the view gets recycled.
-            flutterCell = cell
+            cell.viewEngine = flutterViewEngine
             // Keep track that this position has once been a Flutter cell. Let it be a Flutter cell
             // again when scrolling back to this position.
             previousFlutterCells.add(position)
@@ -91,7 +84,7 @@ class ListAdapter(context: Context, private val flutterViewEngine: FlutterViewEn
             flutterViewEngine.attachFlutterView(flutterView)
             // Tell Flutter which index it's at so Flutter could show the cell number too in its
             // own widget tree.
-            flutterChannel.invokeMethod("setCellNumber", position)
+            MethodChannel(flutterViewEngine.engine.dartExecutor, "dev.flutter.example/cell").invokeMethod("setCellNumber", position)
         } else {
             // If it's not selected as a Flutter cell, just show the Android card.
             cell.binding.androidCard.visibility = View.VISIBLE
@@ -102,10 +95,11 @@ class ListAdapter(context: Context, private val flutterViewEngine: FlutterViewEn
     override fun getItemCount() = 100
 
     override fun onViewRecycled(cell: Cell) {
-        if (cell == flutterCell) {
+        if (cell.viewEngine != null) {
             cell.binding.root.removeView(flutterView)
-            flutterViewEngine.detachFlutterView()
-            flutterCell = null
+            cell.viewEngine.detachFlutterView()
+            cell.viewEngine.detachFromActivity()
+            cell.viewEngine = null
         }
         super.onViewRecycled(cell)
     }
